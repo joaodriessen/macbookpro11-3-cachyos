@@ -1,0 +1,94 @@
+MacBookPro11,3 — ACPI (DSDT/SSDT) excerpt relevant to "why not D3cold"
+=======================================================================
+
+Extracted with `iasl -d` from `acpidump -b` output (see
+diagnostics/decode-dsdt.sh and diagnostics/dgpu-poweroff-probe.sh for the
+scripts that generated this). This is a hand-picked excerpt, not the full
+239KB decompiled DSDT — only the parts relevant to the dGPU power-off
+investigation are kept.
+
+--- 1. Where the dGPU (NVIDIA GT750M) lives in the ACPI namespace --------
+
+dsdt.dsl:2479   Device (P0P2)              // PCIe root port the dGPU hangs off
+dsdt.dsl:2480   {
+dsdt.dsl:2481       Name (_ADR, 0x00010000)
+dsdt.dsl:2482       Method (_PRW, 0, NotSerialized)   // Power Resources for Wake
+dsdt.dsl:2483       {
+dsdt.dsl:2484           If (OSDW ())
+dsdt.dsl:2485           {
+                    ...
+
+--- 2. Every _OFF / _ON / _PS0 / _PS3 method in the whole ACPI namespace -
+
+Searched ALL decoded tables (DSDT + every SSDT) for _OFF, _ON, _PS0, _PS3,
+SGOF, SGON. Results:
+
+  dsdt.dsl:2557   Method (_DSM, 4, NotSerialized)   // generic device-specific method
+  dsdt.dsl:6338   Method (_PS0, 0, Serialized)       // (unrelated device, not GFX0/P0P2)
+  dsdt.dsl:6346   Method (_PS3, 0, Serialized)       // (unrelated device, not GFX0/P0P2)
+  dsdt.dsl:6588   Method (_PS0, 0, Serialized)       // (unrelated device, not GFX0/P0P2)
+  dsdt.dsl:6638   Method (_PS3, 0, Serialized)       // (unrelated device, not GFX0/P0P2)
+  dsdt.dsl:6669   Method (_DSM, 4, NotSerialized)
+  ssdt3.dsl:107   Method (_DSM, 4, NotSerialized)
+  ssdt5.dsl:3370  Method (_DSM, 4, NotSerialized)
+  ssdt5.dsl:3403  Method (_DSM, 4, NotSerialized)
+  ssdt5.dsl:6541  Method (_DSM, 4, NotSerialized)
+  ssdt5.dsl:9066  Method (_DSM, 4, NotSerialized)
+  ssdt8.dsl:235   Method (_DSM, 4, NotSerialized)
+
+None of these _PS0/_PS3 methods are inside the GFX0 or P0P2 scope — they
+belong to other devices entirely. There is NO _OFF, _ON, _PS0, or _PS3
+method defined anywhere inside GFX0 or P0P2. This is the key negative
+result: no callable ACPI power-off path exists for the dGPU on this board.
+
+--- 3. What GFX0 actually contains: PSSR (register save/restore only) ---
+
+ssdt5.dsl:2176  Device (GFX0)
+ssdt5.dsl:2177  {
+ssdt5.dsl:2178      Method (PSSR, 1, Serialized)
+ssdt5.dsl:2179      {
+ssdt5.dsl:2180          If ((Arg0 == 0x01))
+ssdt5.dsl:2181          {
+ssdt5.dsl:2182              VDD8 = FDD8   /* \_SB_.PCI0.P0P2.FDD8 */
+ssdt5.dsl:2183              V900  = F900  /* \_SB_.PCI0.P0P2.F900  */
+ssdt5.dsl:2184              V904  = F904  /* \_SB_.PCI0.P0P2.F904  */
+ssdt5.dsl:2185              V908  = F908  /* \_SB_.PCI0.P0P2.F908  */
+                ... (~130 more V<reg> = F<reg> pairs, copying every PCI
+                     config-space register of the dGPU into shadow storage
+                     when Arg0 == 1, and the mirror-image copy back when
+                     Arg0 == 0 in the Else branch below) ...
+              }
+              Else
+              {
+                  FDD8 = VDD8
+                  F900  = V900
+                  ... (same ~130 registers, restored) ...
+              }
+          }
+      }
+
+PSSR ("Power State Save/Restore") is a config-space snapshot/restore
+helper — it saves or restores the dGPU's PCI config registers around a
+power-state transition that something else drives. It is NOT itself a
+power-off method: there's nothing here that asserts a power rail, toggles
+a GPIO, or calls into a power resource. It's the kind of helper a real
+_PS3/_PS0 pair would call into, but no such pair exists in this table for
+GFX0/P0P2 on this board.
+
+--- 4. The only "power-off-adjacent" ACPI activity found -----------------
+
+dsdt.dsl:5799   Notify (\_SB.PCI0.P0P2.GFX0, Local0)
+dsdt.dsl:7430   Notify (\_SB.PCI0.P0P2, 0x02)   // Device Wake
+
+These are Notify() calls (ACPI event notifications, e.g. for the gmux
+driver / vga_switcheroo to react to), not power control methods themselves.
+
+--- Conclusion used in the README's "why not D3cold" section --------------
+
+No _OFF/_ON/_PS3 exists for GFX0 or P0P2 in this board's ACPI tables.
+The only real dGPU power-down path on this hardware is the gmux-mediated
+cut that vga_switcheroo can trigger — but reaching it requires loading
+nouveau (flaky on this Kepler chip) to register the switcheroo client in
+the first place. Given nvidia-470xx was already fully blacklisted (the
+big heat/noise win), chasing the remaining ~5C via that path was judged
+not worth the added instability.

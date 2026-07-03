@@ -16,17 +16,19 @@
 #     linux-cachyos / -lts / snapshot entries, /etc/default/limine, or OpenCore)
 #   * your normal CachyOS entry stays the default -> recovery = reboot, pick it.
 #
-# ADAPT BEFORE RUNNING: KVER and the root= UUID below are hardcoded for the
-# machine this was developed on. Set KVER to `uname -r` (or your target kernel)
-# and root=UUID=... to your own root filesystem UUID (blkid).
+# KVER and the cmdline are AUTO-DETECTED from the running system (see below);
+# review what the script prints before rebooting. Override via environment:
+#   KVER=6.18.37-1-cachyos-lts CMDLINE='...' sudo -E ./build-uki-igpu-test.sh
 #
 # Run:  sudo ./build-uki-igpu-test.sh
 # Revert: sudo ./revert-uki-igpu-test.sh
 
 set -euo pipefail
 
-KVER="7.1.2-3-cachyos"
-KNAME="linux-cachyos"
+# Kernel: default = the one currently running.
+KVER="${KVER:-$(uname -r)}"
+# Kernel package name (used only for the UKI filename), e.g. linux-cachyos.
+KNAME="$(cat "/usr/lib/modules/${KVER}/pkgbase" 2>/dev/null || echo linux)"
 UKI_DIR="/boot/EFI/Linux"
 UKI_PATH="${UKI_DIR}/igpu-test_${KNAME}.efi"
 ENTRY_NAME="iGPU Test (EFISTUB apple_set_os)"
@@ -47,14 +49,34 @@ prod="$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null || echo unknown
 # the panel survives the EFI-stub stage, we can SEE boot output. apple_set_os is fired
 # by the stub based on the DMI match, BEFORE the cmdline matters, so dropping quiet/splash
 # does NOT change whether the iGPU wakes — it only makes a failure easier to diagnose.
+#
+# Default: derived from the CURRENT boot (/proc/cmdline), dropping quiet/splash and
+# bootloader-managed noise. Override with CMDLINE=... in the environment.
+if [[ -z "${CMDLINE:-}" ]]; then
+  keep=()
+  # shellcheck disable=SC2013  # word-splitting the cmdline is the point here
+  for arg in $(cat /proc/cmdline); do
+    case "$arg" in
+      quiet|splash|BOOT_IMAGE=*|initrd=*) ;;   # visibility / stub-managed — drop
+      *) keep+=("$arg") ;;
+    esac
+  done
+  CMDLINE="${keep[*]}"
+fi
+if [[ "$CMDLINE" != *root=* ]]; then
+  # Running boot didn't carry root= (unusual) — reconstruct it from the mounted root.
+  CMDLINE+=" rw rootflags=subvol=$(findmnt -no FSROOT /) root=UUID=$(findmnt -no UUID /)"
+  echo "NOTE: no root= in /proc/cmdline; derived from findmnt instead."
+fi
+
 CMDLINE_FILE="$(mktemp)"
 trap 'rm -f "$CMDLINE_FILE"' EXIT
-printf '%s\n' \
-  'nvidia-drm.modeset=1 nowatchdog rw rootflags=subvol=/@ root=UUID=0e1730ac-5ee7-41d8-a952-47b74da6a209' \
-  > "$CMDLINE_FILE"
+printf '%s\n' "$CMDLINE" > "$CMDLINE_FILE"
+echo "==> Detected kernel:  $KVER  ($KNAME)"
+echo "==> UKI cmdline:      $CMDLINE"
+echo "    (review both — override with KVER=... CMDLINE=... sudo -E $0)"
 
 echo "==> [1/3] Building UKI  ->  $UKI_PATH"
-echo "    cmdline: $(cat "$CMDLINE_FILE")"
 install -dm700 "$UKI_DIR"
 mkinitcpio --kernel "$KVER" --uki "$UKI_PATH" --cmdline "$CMDLINE_FILE"
 

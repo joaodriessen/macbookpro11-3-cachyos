@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # Undo nvidia-off.sh: re-enable the nvidia driver and rebuild the test UKI.
 #
-# ADAPT BEFORE RUNNING: KVER and the root= UUID are hardcoded for the machine
-# this was developed on — set them to your own kernel version and root UUID.
+# KVER and the cmdline are AUTO-DETECTED from the running system; review what
+# the script prints. Override via env: KVER=... CMDLINE=... sudo -E $0
 set -euo pipefail
 if (( EUID != 0 )); then echo "Run as root: sudo $0" >&2; exit 1; fi
 
-KVER="7.1.2-3-cachyos"
-UKI_PATH="/boot/EFI/Linux/igpu-test_linux-cachyos.efi"
+KVER="${KVER:-$(uname -r)}"
+KNAME="$(cat "/usr/lib/modules/${KVER}/pkgbase" 2>/dev/null || echo linux)"
+UKI_PATH="/boot/EFI/Linux/igpu-test_${KNAME}.efi"
 MKINIT="/etc/mkinitcpio.conf"
 BAK="${MKINIT}.bak-nvoff"
 BL="/etc/modprobe.d/nvidia-blacklist.conf"
@@ -18,7 +19,26 @@ echo "==> Restoring $MKINIT from $BAK"
 echo "    MODULES now: $(grep -E '^MODULES=' "$MKINIT")"
 
 echo "==> Rebuilding test UKI with nvidia cmdline"
+# Default: current boot's cmdline minus quiet/splash and bootloader noise, with
+# nvidia-drm.modeset=1 re-added (nvidia-off.sh strips every nvidia-* param).
+if [[ -z "${CMDLINE:-}" ]]; then
+  keep=()
+  # shellcheck disable=SC2013  # word-splitting the cmdline is the point here
+  for arg in $(cat /proc/cmdline); do
+    case "$arg" in
+      quiet|splash|BOOT_IMAGE=*|initrd=*|nvidia*) ;;
+      *) keep+=("$arg") ;;
+    esac
+  done
+  CMDLINE="nvidia-drm.modeset=1 ${keep[*]}"
+fi
+if [[ "$CMDLINE" != *root=* ]]; then
+  CMDLINE+=" rw rootflags=subvol=$(findmnt -no FSROOT /) root=UUID=$(findmnt -no UUID /)"
+  echo "    NOTE: no root= in /proc/cmdline; derived from findmnt instead."
+fi
 CMDLINE_FILE="$(mktemp)"; trap 'rm -f "$CMDLINE_FILE"' EXIT
-printf '%s\n' 'nvidia-drm.modeset=1 nowatchdog rw rootflags=subvol=/@ root=UUID=0e1730ac-5ee7-41d8-a952-47b74da6a209' > "$CMDLINE_FILE"
+printf '%s\n' "$CMDLINE" > "$CMDLINE_FILE"
+echo "    kernel:  $KVER ($KNAME)"
+echo "    cmdline: $CMDLINE"
 mkinitcpio --kernel "$KVER" --uki "$UKI_PATH" --cmdline "$CMDLINE_FILE"
 echo "Done. Reboot. (nvidia re-enabled; panel still on Intel unless you also run mux-to-nvidia.sh)"

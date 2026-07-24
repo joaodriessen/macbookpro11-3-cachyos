@@ -31,8 +31,8 @@ OUT="${HOME}/boot-info.txt"
   cat /etc/modprobe.d/nvidia-blacklist.conf 2>/dev/null || echo "(absent)"
   echo
   echo "===== does regular initramfs still bundle nvidia? (lsinitcpio) ====="
-  img=$(ls /boot/initramfs-linux-cachyos.img 2>/dev/null | head -1)
-  [[ -n "${img:-}" ]] && lsinitcpio "$img" 2>/dev/null | grep -iE 'nvidia|i915' | head || echo "(image not found / lsinitcpio n/a)"
+  img=/boot/initramfs-linux-cachyos.img
+  [[ -e "$img" ]] && lsinitcpio "$img" 2>/dev/null | grep -iE 'nvidia|i915' | head || echo "(image not found / lsinitcpio n/a)"
 } > "$OUT" 2>&1
 chmod 644 "$OUT"
 echo "Wrote $OUT"

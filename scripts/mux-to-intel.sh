@@ -12,8 +12,6 @@ set -euo pipefail
 if (( EUID != 0 )); then echo "Run as root: sudo $0" >&2; exit 1; fi
 
 EFIVAR="/sys/firmware/efi/efivars/gpu-power-prefs-fa4ce28d-b62f-4c99-9cc3-6815686e30f9"
-# 8 bytes: attributes 07 00 00 00 (NV|BS|RT) + data 01 00 00 00 (1 = integrated/Intel)
-BYTES='\x07\x00\x00\x00\x01\x00\x00\x00'
 
 mountpoint -q /sys/firmware/efi/efivars || mount -t efivarfs none /sys/firmware/efi/efivars
 
@@ -25,7 +23,12 @@ if [[ -e "$EFIVAR" ]]; then
 fi
 
 echo "==> Writing gpu-power-prefs = INTEGRATED (single 8-byte write via dd)"
-printf "$BYTES" | dd of="$EFIVAR" bs=8 count=1 conv=notrunc 2>/dev/null
+# 8 bytes: attributes 07 00 00 00 (NV|BS|RT) + data 01 00 00 00 (1 = integrated/Intel)
+if ! printf '\x07\x00\x00\x00\x01\x00\x00\x00' \
+     | dd of="$EFIVAR" bs=8 count=1 conv=notrunc 2>/dev/null; then
+  echo "ERROR: write to $EFIVAR failed (efivarfs rejected it). Nothing staged." >&2
+  exit 1
+fi
 
 echo
 echo "==> Verify: file size must be 8 (4 attr + 4 data)"

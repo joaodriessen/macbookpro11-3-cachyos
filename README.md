@@ -100,6 +100,15 @@ after the upstream safety fix is present.
    shot (`bs=8 count=1`), which is a single `write()` call and lands
    correctly — verified by checking the resulting file size is exactly 8
    bytes.
+
+   A follow-up finding from the running system: **the firmware consumes the
+   variable when it applies it.** On a healthy, fully-migrated machine the
+   variable is *absent* after boot — the panel simply comes up on Intel
+   (verifiable via which PCI device owns the `eDP-1` connector in sysfs).
+   So "the efivar is gone" is the normal post-boot state, not a failure;
+   an 8-byte variable means a switch is *staged* for the next boot, and a
+   4-byte variable means the malformed split-write described above. The
+   verify scripts distinguish all three.
 3. **nvidia + nouveau fully blacklisted from the initramfs, *and*
    intercepted via `install nvidia /bin/false`.** Plain `blacklist nvidia`
    in `modprobe.d` only stops *automatic* module loading triggered by udev/
@@ -163,7 +172,8 @@ PCI/HDA unbinding or gmux writes; wait for the fixed kernel path.
   no longer describes the installed configuration. After any bootloader or
   snapshot integration change, verify that the selected entry still boots a
   UKI containing the required firmware handoff before relying on it for
-  recovery.
+  recovery. `scripts/verify-all.sh` reports any legacy `protocol: linux`
+  entries still present in `limine.conf`.
 
 ## Recovery story: SSH first, always
 
@@ -181,10 +191,12 @@ script for exactly this reason.
 
 Everything in `scripts/` is reference material from the actual migration,
 not a turnkey installer. These were written interactively, for this one
-specific machine, and most have hardcoded values (kernel version strings,
-this install's root filesystem UUID, `MacBookPro11,3` DMI checks) that you
-should read and adapt before running anything. Read each script before
-running it.
+specific machine. The UKI-building scripts auto-detect the kernel version
+and kernel cmdline from the running system (deriving the diagnostic cmdline
+from `/proc/cmdline` and the root filesystem from `findmnt`), print what
+they detected, and accept `KVER=... CMDLINE=...` environment overrides —
+but they still assume this machine's overall shape (CachyOS, Limine,
+btrfs, `MacBookPro11,3`). Read each script before running it.
 
 Roughly the order they were used in:
 
@@ -210,6 +222,23 @@ Roughly the order they were used in:
 9. `greeter-wayland.sh` / `revert-greeter-wayland.sh` — capstone step, once
    nvidia is gone and Intel/Mesa provides GBM: flip the SDDM greeter itself
    to Wayland, proving the original GBM problem is solved.
+
+### Ongoing maintenance: `verify-all.sh`
+
+Once migrated, `sudo scripts/verify-all.sh` is the one command to run after
+any kernel, Limine, or SDDM update (or whenever something feels off). It is
+read-only and re-checks every load-bearing piece of the final architecture
+in one pass: that the current boot actually went through the systemd EFI
+stub (proven via the `StubInfo` EFI variable the stub leaves behind — more
+reliable than kernel logs, which rotate away on long uptimes), that
+`ENABLE_UKI=yes` still holds and each installed kernel's deployed UKI
+embeds *exactly* that kernel (first copying each live UKI and then
+byte-comparing its offline `objcopy` extraction, since the deploy tooling
+preserves mtimes on unchanged UKIs and timestamps mislead), that
+the panel is on i915 with nvidia/nouveau absent and intercepted, the
+`gpu-power-prefs` state, the i965 VA-API pin (with a live headless capability
+probe), the Wayland greeter, and the sshd recovery net. Exit code 0 means
+no failures, so it's also scriptable.
 
 Also included, from earlier in the same migration story (while still
 running `nvidia-470xx`, before the decision to remove NVIDIA entirely):

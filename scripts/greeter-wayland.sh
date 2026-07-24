@@ -28,7 +28,8 @@ else
 fi
 
 echo "==> Distro Wayland greeter config that now takes effect:"
-cat /usr/lib/sddm/sddm.conf.d/zz-wayland.conf | sed 's/^/   /'
+sed 's/^/   /' /usr/lib/sddm/sddm.conf.d/zz-wayland.conf 2>/dev/null \
+  || echo "   (zz-wayland.conf not found — your distro may ship its Wayland greeter config elsewhere; check the grep output above)"
 
 echo
 echo "==> New effective DisplayServer (want: only the /usr/lib wayland one):"

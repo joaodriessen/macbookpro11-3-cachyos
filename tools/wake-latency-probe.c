@@ -56,6 +56,7 @@ int main(int argc, char **argv)
     FILE *output;
     struct timespec start;
     struct timespec deadline;
+    long long total_ms;
     long long sample_count;
 
     for (int index = 1; index < argc; index++) {
@@ -91,14 +92,21 @@ int main(int argc, char **argv)
         fprintf(stderr, "--interval-ms must be between 1 and 1000\n");
         return 2;
     }
+    total_ms = (long long)duration * 1000;
+    if (total_ms % interval_ms != 0) {
+        fprintf(stderr,
+                "--interval-ms must divide the requested duration exactly\n");
+        return 2;
+    }
     if (output_path == NULL) {
         fprintf(stderr, "--output is required\n");
         return 2;
     }
 
-    output = fopen(output_path, "w");
+    output = fopen(output_path, "wx");
     if (output == NULL) {
-        fprintf(stderr, "Cannot open %s: %s\n", output_path, strerror(errno));
+        fprintf(stderr, "Cannot create new output %s: %s\n", output_path,
+                strerror(errno));
         return 2;
     }
 
@@ -108,7 +116,7 @@ int main(int argc, char **argv)
         return 1;
     }
     deadline = start;
-    sample_count = (long long)duration * 1000 / interval_ms;
+    sample_count = total_ms / interval_ms;
 
     fprintf(output, "sample,elapsed_ms,latency_us\n");
 

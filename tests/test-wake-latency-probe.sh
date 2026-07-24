@@ -17,6 +17,19 @@ if "$binary" --duration 0 --output "$output" 2>/dev/null; then
   exit 1
 fi
 
+if "$binary" --duration 1 --interval-ms 700 --output "$output" 2>/dev/null; then
+  echo "non-divisible interval unexpectedly succeeded" >&2
+  exit 1
+fi
+
+printf 'preserve-me\n' > "$output"
+if "$binary" --duration 1 --output "$output" 2>/dev/null; then
+  echo "existing output path unexpectedly succeeded" >&2
+  exit 1
+fi
+[[ $(<"$output") == preserve-me ]]
+rm "$output"
+
 "$binary" --duration 1 --interval-ms 10 --output "$output"
 
 [[ $(head -n 1 "$output") == 'sample,elapsed_ms,latency_us' ]]

@@ -7,6 +7,8 @@ Usage: thermal-sampler.sh --duration SECONDS --output FILE [--interval SECONDS]
 
 Record read-only CPU, thermal, fan, pressure, throttle, scheduler, and power
 profile telemetry as CSV. Duration and interval must be positive integers.
+This MacBook-specific sampler requires x86_pkg_temp, applesmc fan sensors,
+and /sys/class/power_supply/macsmc-ac/online. Existing output is never replaced.
 EOF
 }
 
@@ -56,6 +58,10 @@ if [[ ! -d $(dirname "$output") ]]; then
   echo "Output directory does not exist: $(dirname "$output")" >&2
   exit 2
 fi
+if [[ -e $output || -L $output ]]; then
+  echo "Refusing existing output path: $output" >&2
+  exit 2
+fi
 if ! command -v sensors >/dev/null; then
   echo "sensors is required" >&2
   exit 2
@@ -93,9 +99,9 @@ fan_speeds() {
       /fan1_input:/ { left=$2 }
       /fan2_input:/ { right=$2 }
       END {
-        if (left == "") left=0
-        if (right == "") right=0
-        printf "%.0f %.0f\n", left, right
+        if (left == "") left="unknown"
+        if (right == "") right="unknown"
+        printf "%s %s\n", left, right
       }
     '
 }
@@ -106,11 +112,18 @@ max_throttle_value() {
     /sys/devices/system/cpu/cpu*/thermal_throttle/"$pattern" 2>/dev/null
 }
 
-scheduler=$(cat /sys/kernel/sched_ext/root/ops 2>/dev/null || printf 'eevdf')
-[[ -n $scheduler ]] || scheduler=eevdf
-ppd_profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
-ac_online=$(cat /sys/class/power_supply/macsmc-ac/online 2>/dev/null || printf 'unknown')
+read -r initial_fan_left initial_fan_right < <(fan_speeds)
+if [[ $initial_fan_left == unknown || $initial_fan_right == unknown ]]; then
+  echo "Both applesmc fan sensors are required" >&2
+  exit 2
+fi
+ac_online_path=/sys/class/power_supply/macsmc-ac/online
+if [[ ! -r $ac_online_path ]]; then
+  echo "AC state is unavailable at $ac_online_path" >&2
+  exit 2
+fi
 
+set -o noclobber
 printf '%s\n' \
   'timestamp,elapsed_s,cpu_busy_pct,avg_freq_mhz,pkg_temp_c,fan_left_rpm,fan_right_rpm,load1,memory_psi_some_avg10,package_throttle_count,package_throttle_ms,scheduler,ppd_profile,ac_online' \
   > "$output"
@@ -143,6 +156,10 @@ while ((elapsed < duration)); do
   memory_psi=$(awk -F'[ =]' '/^some / { print $3 }' /proc/pressure/memory)
   throttle_count=$(max_throttle_value package_throttle_count)
   throttle_ms=$(max_throttle_value package_throttle_total_time_ms)
+  scheduler=$(cat /sys/kernel/sched_ext/root/ops 2>/dev/null || printf 'eevdf')
+  [[ -n $scheduler ]] || scheduler=eevdf
+  ppd_profile=$(powerprofilesctl get 2>/dev/null || printf 'unknown')
+  ac_online=$(<"$ac_online_path")
 
   printf '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n' \
     "$(date --iso-8601=seconds)" "$elapsed" "$cpu_busy" "$avg_freq" \

@@ -18,6 +18,10 @@ See [Hybrid GPU test results and safety gate](docs/hybrid-gpu-results.md) for
 the measured Test 1/Test 2 results, root cause, current prohibition, Intel
 acceleration audit, and exact prerequisites for a future Linux 7.2 retest.
 
+See the [July 2026 final improvement report](docs/final-report-2026-07-24.md)
+for measured before/after results, current policy, rollback points and
+intentionally deferred work.
+
 ## Hardware / software context
 
 - **Machine**: MacBookPro11,3 (Late 2013 Retina), Haswell CPU.

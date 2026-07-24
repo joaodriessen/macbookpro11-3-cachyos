@@ -236,7 +236,7 @@ embeds *exactly* that kernel (first copying each live UKI and then
 byte-comparing its offline `objcopy` extraction, since the deploy tooling
 preserves mtimes on unchanged UKIs and timestamps mislead), that
 the panel is on i915 with nvidia/nouveau absent and intercepted, the
-`gpu-power-prefs` state, the i965 VA-API pin (with a live headless decode
+`gpu-power-prefs` state, the i965 VA-API pin (with a live headless capability
 probe), the Wayland greeter, and the sshd recovery net. Exit code 0 means
 no failures, so it's also scriptable.
 

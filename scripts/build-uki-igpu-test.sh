@@ -57,7 +57,8 @@ if [[ -z "${CMDLINE:-}" ]]; then
   # shellcheck disable=SC2013  # word-splitting the cmdline is the point here
   for arg in $(cat /proc/cmdline); do
     case "$arg" in
-      quiet|splash|BOOT_IMAGE=*|initrd=*) ;;   # visibility / stub-managed — drop
+      quiet|splash|BOOT_IMAGE=*|initrd=*|gpu_test=*|nouveau.*) ;;
+        # visibility/stub-managed and inherited experimental GPU state — drop
       *) keep+=("$arg") ;;
     esac
   done

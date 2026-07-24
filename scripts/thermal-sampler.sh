@@ -74,8 +74,8 @@ if [[ -z $pkg_temp_path || ! -r $pkg_temp_path ]]; then
 fi
 
 read_cpu_times() {
-  local label user nice system idle iowait irq softirq steal rest
-  read -r label user nice system idle iowait irq softirq steal rest < /proc/stat
+  local user nice system idle iowait irq softirq steal rest
+  read -r _ user nice system idle iowait irq softirq steal rest < /proc/stat
   CPU_IDLE=$((idle + iowait))
   CPU_TOTAL=$((user + nice + system + idle + iowait + irq + softirq + steal))
 }

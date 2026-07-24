@@ -1,14 +1,22 @@
-# MacBookPro11,3 — Intel-only Linux (CachyOS + Limine)
+# MacBookPro11,3 — Intel-primary Linux (CachyOS + Limine)
 
 This repo documents migrating a MacBookPro11,3 (Late 2013, Haswell) running
 CachyOS Linux from its default NVIDIA-dGPU boot path to running entirely on
-the Intel Iris Pro 5200 iGPU, with the NVIDIA GT750M fully powered down. The
-end result: a cool, silent machine (fan basically never spins up), a stable
-KDE Plasma Wayland session, working hardware video decode/encode, and none of
-the driver instability that comes with NVIDIA's legacy Kepler (`nvidia-470xx`)
-driver. It includes the reasoning behind each step, two abandoned approaches
-and why they were dropped, the trade-offs accepted, and the actual scripts
-used along the way.
+the Intel Iris Pro 5200 iGPU for the internal display and normal desktop,
+without loading NVIDIA's legacy Kepler (`nvidia-470xx`) driver. The result is
+a stable Wayland desktop, working hardware video decode/encode, and none of
+the proprietary-driver instability described below.
+
+Later testing corrected an important claim in the original documentation:
+the driverless GT 750M is **not fully powered down** in production. Its
+graphics and HDMI-audio functions remain in PCI D0. Isolated Nouveau tests
+proved that selective OpenGL offload and automatic runtime suspend/wake are
+possible, but also exposed an upstream Nouveau teardown bug that makes runtime
+PM unsafe on Linux 7.1 and the installed 6.18 LTS kernel.
+
+See [Hybrid GPU test results and safety gate](docs/hybrid-gpu-results.md) for
+the measured Test 1/Test 2 results, root cause, current prohibition, Intel
+acceleration audit, and exact prerequisites for a future Linux 7.2 retest.
 
 ## Hardware / software context
 
@@ -21,7 +29,8 @@ used along the way.
 - **Distro**: CachyOS (Arch-based).
 - **Bootloader**: Limine.
 - **Kernel**: CachyOS kernel, 7.x series.
-- **Desktop**: KDE Plasma.
+- **Desktop**: GNOME Wayland in the latest audit; KDE Plasma and Hyprland are
+  also intentionally retained.
 
 ## Why: the problems being solved
 
@@ -51,8 +60,10 @@ problems:
    in Steam Link. This isn't a configuration problem — it's the bridge
    itself.
 
-Taken together, the only durable fix was to stop using the NVIDIA GPU
-entirely and run this machine as Intel-only.
+Taken together, the durable daily-driver fix was to stop using the proprietary
+NVIDIA stack and make Intel the primary GPU. This does not electrically power
+off the GT 750M, and it does not rule out future selective Nouveau/NVK offload
+after the upstream safety fix is present.
 
 ## The final working architecture
 
@@ -118,35 +129,41 @@ journal — the hang is before Linux is even loaded). Abandoned in favor of
 using the kernel's own EFISTUB, which is a code path already exercised by
 every normal `systemd-boot`/UKI user and needed no third-party shim at all.
 
-**(b) Full dGPU D3cold power-off.** After nvidia was blacklisted, the GT750M
-is driverless but still electrically powered — investigated whether it could
-be cut to D3cold for the last few degrees. This meant decompiling the DSDT
+**(b) Full dGPU D3cold power-off through ACPI alone.** After nvidia was
+blacklisted, the GT750M remained driverless but electrically powered. The
+first investigation asked whether ACPI alone could cut it to D3cold. This
+meant decompiling the DSDT
 (`scripts/diagnostics/decode-dsdt.sh`, `scripts/diagnostics/dgpu-poweroff-probe.sh`)
 and searching every ACPI table for a callable power-off method on the
 `GFX0`/`P0P2` devices. The finding (excerpted in
 `scripts/gfx0-acpi-excerpt.txt`): there is no `_OFF`/`_ON`/`_PS3` method
 anywhere in the GFX0 or P0P2 scope on this board — only a `PSSR` method,
 which is a config-space register save/restore helper, not a power control
-method. The only real power-down path on this hardware is a gmux-mediated
-cut that `vga_switcheroo` can trigger — but reaching that requires loading
-`nouveau` (flaky on this Kepler chip) just to register the switcheroo
-client. Decided this wasn't worth the added instability for an estimated
-~5°C once `nvidia-470xx` was already fully blacklisted and off the critical
-path.
+method.
+
+Later isolated testing proved that Nouveau/vga_switcheroo runtime PM can move
+the dGPU to PCI D3hot/`DynOff`, wake it for offload, and suspend it again. That
+did **not** prove D3cold or a physical apple-gmux rail cut. The result is
+functionally promising but is not safe to deploy because channel teardown
+triggered the upstream Nouveau use-after-free documented in
+[the hybrid results](docs/hybrid-gpu-results.md). Do not substitute manual
+PCI/HDA unbinding or gmux writes; wait for the fixed kernel path.
 
 ## Trade-offs accepted
 
 - **No external monitor support.** HDMI and the Thunderbolt/DisplayPort
   ports on this model are wired to the NVIDIA GPU only, not the Intel iGPU.
-  With NVIDIA powered down, external display output is gone. Accepted as a
-  worthwhile trade for a cool, quiet, stable laptop used mostly standalone.
-- **btrfs/Snapper snapshot boot entries will black-screen if booted
-  directly.** Those entries use Limine's `protocol: linux` (not the UKI
-  path), so they never fire `apple_set_os`, and the panel stays on the
-  firmware-disabled Intel GPU with no display. This is recoverable via SSH
-  (boot the normal default entry instead, or fix up the snapshot's boot
-  config), but it's a real, documented limitation — don't boot a snapshot
-  entry directly expecting a picture.
+  With no NVIDIA graphics driver in production, external display output is
+  unavailable. External-output testing remains a separate, mux-sensitive
+  experiment after runtime PM is safe.
+- **Older btrfs/Snapper snapshot entries could black-screen when booted
+  directly.** The affected historical entries used Limine's `protocol:
+  linux`, bypassed the UKI path and therefore never fired `apple_set_os`.
+  Current snapshot entries use EFI-history UKIs, so that categorical warning
+  no longer describes the installed configuration. After any bootloader or
+  snapshot integration change, verify that the selected entry still boots a
+  UKI containing the required firmware handoff before relying on it for
+  recovery.
 
 ## Recovery story: SSH first, always
 
@@ -228,5 +245,5 @@ technique has been documented via the `gpu-switch` tool and multiple
 MacBookPro11,3 Linux users' writeups over the years. What this repo adds is
 applying and debugging that known technique for one specific combination —
 **CachyOS + Limine** specifically — where most existing guides assume GRUB
-or rEFInd, plus the nvidia-off/VA-API/greeter fixes needed to get a fully
-stable, quiet, Intel-only desktop out of it on this hardware.
+or rEFInd, plus the nvidia-off/VA-API/greeter fixes needed to get a stable,
+quiet, Intel-primary desktop out of it on this hardware.

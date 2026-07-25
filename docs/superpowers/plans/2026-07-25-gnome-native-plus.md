@@ -41,14 +41,14 @@ Create a temporary mock `PATH` containing stateful `gsettings` and
 "$theme_tool" light
 grep -qx "prefer-light" "$workdir/color-scheme"
 grep -qx "enabled" "$workdir/light-style"
-grep -qx "1" "$workdir/panel-style"
-grep -qx "1" "$workdir/dock-style"
+grep -qx "0" "$workdir/panel-style"
+grep -qx "0" "$workdir/dock-style"
 
 "$theme_tool" dark
 grep -qx "prefer-dark" "$workdir/color-scheme"
 grep -qx "disabled" "$workdir/light-style"
-grep -qx "2" "$workdir/panel-style"
-grep -qx "2" "$workdir/dock-style"
+grep -qx "0" "$workdir/panel-style"
+grep -qx "0" "$workdir/dock-style"
 
 "$theme_tool" dark
 [[ $(grep -c '^set ' "$workdir/gsettings.log") -eq 2 ]]
@@ -83,9 +83,9 @@ Usage: gnome-theme-mode.sh light|dark|status
 
 For `light`, set `org.gnome.desktop.interface color-scheme` to
 `prefer-light`, enable the official Light Style UUID, select Blur My Shell
-`panel style-panel=1` and `dash-to-dock style-dash-to-dock=1`, then verify all
-four values. For `dark`, set `prefer-dark`, disable the UUID and select both
-Blur My Shell style values `2`, then verify all four values.
+`panel style-panel=0` and `dash-to-dock style-dash-to-dock=0`, then verify all
+four values. For `dark`, set `prefer-dark`, disable the UUID and retain both
+transparent Blur My Shell style values `0`, then verify all four values.
 `status` prints only `light`, `dark`, or `mixed` and performs no mutation.
 Reject any other argument. Do not call `sudo`, install packages, touch extension
 files, or modify the rest of the enabled-extension list.
@@ -136,8 +136,8 @@ grep -Fqx "org.gnome.shell.extensions.dash-to-dock apply-custom-theme false" "$w
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock override-background true" "$workdir/gsettings.log"
-grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 2" "$workdir/gsettings.log"
-grep -Fqx "org.gnome.shell.extensions.blur-my-shell.panel style-panel 2" "$workdir/gsettings.log"
+grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0" "$workdir/gsettings.log"
+grep -Fqx "org.gnome.shell.extensions.blur-my-shell.panel style-panel 0" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.hidetopbar compatibility true" "$workdir/gsettings.log"
 ```
 
@@ -247,10 +247,10 @@ install -Dm755 scripts/gnome-theme-mode.sh /home/joao/.local/bin/catchybook-them
 ```
 
 Run `catchybook-theme light`, verify `prefer-light` plus enabled official Light
-Style plus light panel/dock material presets, inspect dock/panel/icon
+Style plus transparent panel/dock material presets, inspect dock/panel/icon
 legibility, then run `catchybook-theme dark` and verify `prefer-dark` plus
-disabled official Light Style and dark panel/dock material presets. Leave the
-system in dark mode, matching the pre-change preference.
+disabled official Light Style while retaining transparent panel/dock material
+presets. Leave the system in dark mode, matching the pre-change preference.
 
 - [ ] **Step 4: Verify behavior and smoothness**
 

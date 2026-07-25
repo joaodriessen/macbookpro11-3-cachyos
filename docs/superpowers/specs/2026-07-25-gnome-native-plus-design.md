@@ -48,15 +48,15 @@ or macOS-style keyboard remapping.
 - Preserve the existing left-side placement and all established behavioral
   settings, including intelligent hiding.
 - Replace the fixed white/glossy treatment with theme-aware luminous glass:
-  brighter frosted translucency in light mode and deeper translucent material
-  in dark mode.
+  a fully transparent supported background over rounded static blur, with
+  Shell text/icons and surrounding surfaces adapting to light or dark mode.
 - Treat application and Shell theme as one user-facing mode. GNOME's
   `org.gnome.desktop.interface color-scheme` changes application preference but
   does not switch GNOME Shell. Use a single explicit theme command to set that
   preference and enable/disable the installed official Light Style extension
-  together. The same command must select Blur My Shell's explicit light or dark
-  material presets for both panel and Dash-to-Dock; those components do not
-  listen to the application color preference themselves.
+  together. Blur My Shell's panel and Dash-to-Dock must remain on their
+  supported transparent preset in both modes; those components do not listen
+  to the application color preference themselves.
 - Use moderate rounded static blur rather than continuously recomputed dynamic
   blur.
 - Keep icon sizing and layout usable on the built-in display; do not enlarge
@@ -91,8 +91,7 @@ Smoothness has priority over spectacle.
   another extension for light/dark adaptation.
 - A small non-resident theme command is permitted. It must accept an explicit
   `light` or `dark` target, make the application and Shell modes agree, verify
-  the resulting state including the corresponding Blur My Shell material
-  presets, and exit.
+  the resulting state including transparent Blur My Shell materials, and exit.
 - Use the installed extensions' native theme integration where possible.
 - If the chosen luminous treatment causes visible stutter, extension errors, or
   a repeatable sustained GNOME Shell CPU/GPU increase, reduce or remove blur

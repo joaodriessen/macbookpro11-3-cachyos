@@ -57,7 +57,7 @@ case "$command" in
         case "$key" in
           icon-theme) printf "%s\n" "'Qogir'" ;;
           transparency-mode) printf "%s\n" "'FIXED'" ;;
-          style-dash-to-dock | style-panel) printf '%s\n' 0 ;;
+          style-dash-to-dock | style-panel) printf '%s\n' 2 ;;
           custom-background-color | apply-glossy-effect | apply-custom-theme)
             printf '%s\n' true
             ;;
@@ -133,8 +133,8 @@ grep -Fqx "org.gnome.shell.extensions.dash-to-dock transparency-mode DEFAULT" "$
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock override-background true" "$workdir/gsettings.log"
-grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 2" "$workdir/gsettings.log"
-grep -Fqx "org.gnome.shell.extensions.blur-my-shell.panel style-panel 2" "$workdir/gsettings.log"
+grep -Fqx "org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0" "$workdir/gsettings.log"
+grep -Fqx "org.gnome.shell.extensions.blur-my-shell.panel style-panel 0" "$workdir/gsettings.log"
 grep -Fqx "org.gnome.shell.extensions.blur-my-shell.hidetopbar compatibility true" "$workdir/gsettings.log"
 
 grep -Fq "dconf reset -f /org/gnome/desktop/interface/" "$backup_dir/rollback.sh"

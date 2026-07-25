@@ -124,8 +124,8 @@ set_and_verify '' org.gnome.shell.extensions.dash-to-dock transparency-mode DEFA
 set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.dash-to-dock blur true
 set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.dash-to-dock static-blur true
 set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.dash-to-dock override-background true
-set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 2
-set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.panel style-panel 2
+set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock 0
+set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.panel style-panel 0
 set_and_verify "$bms_schema_dir" org.gnome.shell.extensions.blur-my-shell.hidetopbar compatibility true
 
 echo "GNOME native-plus appearance applied"

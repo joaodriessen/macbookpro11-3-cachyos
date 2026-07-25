@@ -56,9 +56,9 @@ current_mode() {
   dock_style=$(read_setting "$dock_schema" style-dash-to-dock)
   light_style=$(extension_state)
 
-  if [[ $scheme == prefer-light && $panel_style == 1 && $dock_style == 1 && $light_style == enabled ]]; then
+  if [[ $scheme == prefer-light && $panel_style == 0 && $dock_style == 0 && $light_style == enabled ]]; then
     echo light
-  elif [[ $scheme == prefer-dark && $panel_style == 2 && $dock_style == 2 && $light_style == disabled ]]; then
+  elif [[ $scheme == prefer-dark && $panel_style == 0 && $dock_style == 0 && $light_style == disabled ]]; then
     echo dark
   else
     echo mixed
@@ -70,13 +70,12 @@ if [[ $mode == status ]]; then
   exit
 fi
 
+target_style=0
 if [[ $mode == light ]]; then
   target_scheme=prefer-light
-  target_style=1
   target_extension=enabled
 else
   target_scheme=prefer-dark
-  target_style=2
   target_extension=disabled
 fi
 

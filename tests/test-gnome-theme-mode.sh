@@ -109,21 +109,21 @@ export BMS_SCHEMA_DIR="$workdir/fake-bms-schemas"
 "$theme_tool" light
 grep -qx 'prefer-light' "$workdir/color-scheme"
 grep -qx 'enabled' "$workdir/light-style"
-grep -qx '1' "$workdir/panel-style"
-grep -qx '1' "$workdir/dock-style"
+grep -qx '0' "$workdir/panel-style"
+grep -qx '0' "$workdir/dock-style"
 [[ $("$theme_tool" status) == light ]]
 
 "$theme_tool" dark
 grep -qx 'prefer-dark' "$workdir/color-scheme"
 grep -qx 'disabled' "$workdir/light-style"
-grep -qx '2' "$workdir/panel-style"
-grep -qx '2' "$workdir/dock-style"
+grep -qx '0' "$workdir/panel-style"
+grep -qx '0' "$workdir/dock-style"
 [[ $("$theme_tool" status) == dark ]]
 
 "$theme_tool" dark
 [[ $(grep -c '^set org.gnome.desktop.interface color-scheme ' "$workdir/gsettings.log") -eq 2 ]]
-[[ $(grep -c '^set org.gnome.shell.extensions.blur-my-shell.panel style-panel ' "$workdir/gsettings.log") -eq 2 ]]
-[[ $(grep -c '^set org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock ' "$workdir/gsettings.log") -eq 2 ]]
+[[ $(grep -c '^set org.gnome.shell.extensions.blur-my-shell.panel style-panel ' "$workdir/gsettings.log") -eq 1 ]]
+[[ $(grep -c '^set org.gnome.shell.extensions.blur-my-shell.dash-to-dock style-dash-to-dock ' "$workdir/gsettings.log") -eq 1 ]]
 [[ $(wc -l < "$workdir/extensions.log") -eq 2 ]]
 
 printf '%s\n' prefer-dark > "$workdir/color-scheme"

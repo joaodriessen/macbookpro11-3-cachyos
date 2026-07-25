@@ -50,6 +50,13 @@ or macOS-style keyboard remapping.
 - Replace the fixed white/glossy treatment with theme-aware luminous glass:
   brighter frosted translucency in light mode and deeper translucent material
   in dark mode.
+- Treat application and Shell theme as one user-facing mode. GNOME's
+  `org.gnome.desktop.interface color-scheme` changes application preference but
+  does not switch GNOME Shell. Use a single explicit theme command to set that
+  preference and enable/disable the installed official Light Style extension
+  together. The same command must select Blur My Shell's explicit light or dark
+  material presets for both panel and Dash-to-Dock; those components do not
+  listen to the application color preference themselves.
 - Use moderate rounded static blur rather than continuously recomputed dynamic
   blur.
 - Keep icon sizing and layout usable on the built-in display; do not enlarge
@@ -80,8 +87,12 @@ Smoothness has priority over spectacle.
 
 - Prefer static blur for dock and panel.
 - Avoid whole-window blur and additional background effects.
-- Do not add a daemon, theme-switching script, custom GNOME Shell stylesheet,
-  or another extension for light/dark adaptation.
+- Do not add a daemon, polling process, custom GNOME Shell stylesheet, or
+  another extension for light/dark adaptation.
+- A small non-resident theme command is permitted. It must accept an explicit
+  `light` or `dark` target, make the application and Shell modes agree, verify
+  the resulting state including the corresponding Blur My Shell material
+  presets, and exit.
 - Use the installed extensions' native theme integration where possible.
 - If the chosen luminous treatment causes visible stutter, extension errors, or
   a repeatable sustained GNOME Shell CPU/GPU increase, reduce or remove blur
@@ -91,8 +102,11 @@ Smoothness has priority over spectacle.
 
 The implementation may change only:
 
+- a repository-owned, test-covered theme command and its user-local installed
+  copy;
 - `org.gnome.desktop.interface` icon/theme-adjacent keys needed for the Papirus
-  trial;
+  trial and unified light/dark selection;
+- enablement of the already installed official Light Style extension;
 - `org.gnome.shell.extensions.dash-to-dock` appearance keys;
 - the installed Blur My Shell panel and Dash-to-Dock component keys;
 - the installed Hide Top Bar keys needed to enforce the approved visibility
@@ -113,15 +127,15 @@ It must not:
 ## Staged Application
 
 1. Export the relevant dconf settings and record enabled extensions.
-2. Record a short idle GNOME Shell CPU and Intel GPU baseline with the desktop
-   undisturbed.
+2. Record a short idle GNOME Shell CPU baseline with the desktop undisturbed.
 3. Switch only the icon theme to Papirus and verify common applications,
    symbolic status icons, and Flatpak launchers.
 4. Change only dock appearance settings. Verify placement and behavior are
    unchanged, then inspect both light and dark modes.
 5. Change only panel material and intellihide settings. Verify normal,
    maximized, full-screen, and Overview states.
-6. Restore the user's preferred color scheme after the light/dark test.
+6. Install and test the unified theme command. Exercise both explicit targets
+   and restore the user's original dark preference after the light/dark test.
 7. Recheck GNOME Shell CPU/GPU behavior, Shell/extension journal errors, enabled
    extensions, and all protected system invariants.
 
@@ -133,9 +147,15 @@ an unresolved failure from an earlier stage.
 The result is acceptable only if:
 
 - Papirus renders correctly in the dock, top bar, Overview, Nautilus, Settings,
-  Chrome, Starlight, and representative Flatpak launchers;
+  Chrome, Starlight, and representative Flatpak launchers, meaning no missing
+  or broken icons. Shell symbolic/status icons and application-supplied icons
+  need not originate from Papirus.
 - switching GNOME between light and dark produces legible dock and panel
-  materials without a fixed inappropriate tint;
+  materials without a fixed inappropriate tint, when performed through the
+  unified theme command;
+- the unified theme command is idempotent, changes no unrelated extension
+  enablement, reports failure if either application or Shell state does not
+  match the requested target, and has no resident process;
 - the dock remains left-mounted and retains its previous hide/show behavior;
 - the panel is visible with non-maximized windows, hidden for maximized and
   full-screen windows, and visible in Overview;
@@ -148,6 +168,12 @@ The result is acceptable only if:
 ## Rollback
 
 - Keep a timestamped focused dconf export created immediately before mutation.
+- Keep a copy of the pre-existing enabled-extension list. Removing the unified
+  theme command and restoring the dconf export must remove its local behavior.
+- Rollback must first reset each exact scoped dconf subtree and then load its
+  dump; loading a dump alone does not remove values that were defaults before
+  mutation. The enabled-extension key must be backed up and restored
+  separately.
 - Restore that export to return Dash-to-Dock, Blur My Shell, Hide Top Bar,
   interface and extension settings to their exact prior values.
 - If only the icon trial is rejected, set

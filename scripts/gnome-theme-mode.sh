@@ -42,7 +42,7 @@ write_setting() {
 }
 
 extension_state() {
-  if gnome-extensions info "$light_style_uuid" | grep -q 'State: ENABLED'; then
+  if gnome-extensions info "$light_style_uuid" | grep -q 'Enabled: Yes'; then
     echo enabled
   else
     echo disabled

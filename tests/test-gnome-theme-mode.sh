@@ -79,9 +79,9 @@ expected_uuid=light-style@gnome-shell-extensions.gcampax.github.com
 case "$command" in
   info)
     if [[ $(<"$MOCK_STATE_DIR/light-style") == enabled ]]; then
-      printf '%s\n' 'State: ENABLED'
+      printf '%s\n' 'Enabled: Yes' 'State: INITIALIZED'
     else
-      printf '%s\n' 'State: DISABLED'
+      printf '%s\n' 'Enabled: No' 'State: INITIALIZED'
     fi
     ;;
   enable)
